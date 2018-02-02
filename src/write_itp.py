@@ -5,7 +5,7 @@ import sys, os
 from mol import read_mol
 from cg_topol import *
 from numpy import array, sqrt, sum, argmax, abs, dot, pi, arange
-from read_top import TOP
+from gromacs.top import TOP
 
 def main(argv):
     assert len(argv) == 4, "Usage: %s <mol.sdf> <param dir> <out.itp>"%argv[0]

@@ -47,6 +47,17 @@ HBOND CUTHB 0.5  ! If you want to do hbond analysis (only), then use
 END
 """)
 
+    # Returns rmin, eps for a given type-pair.
+    def reps(self, t1, t2, onefour):
+        coef = self.nonbonded
+        if onefour:
+            eps = (coef[i][2]*coef[j][2])**(0.5)
+            rmin = coef[i][3] + coef[j][3]
+        else:
+            eps = (coef[i][0]*coef[j][0])**(0.5)
+            rmin = coef[i][1] + coef[j][1]
+        return rmin, eps
+
 def write_atom(k,v): # (n, mass)
     return "MASS %5d %-6s %9.5f"%(v[0], k, v[1])
 

@@ -4,7 +4,7 @@ import sys, os
 #from psf import read_psf
 from frc_solve import *
 from numpy import array, sqrt, sum, argmax, newaxis, abs, dot, pi, arange
-from read_prm import PRM
+from charmm.prm import PRM
 
 def main(argv):
     assert len(argv) == 3, "Usage: %s <param dir> <out.prm>"%argv[0]

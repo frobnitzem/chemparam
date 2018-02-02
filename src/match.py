@@ -105,35 +105,24 @@ def onefour(tors):
            LJ14.add((l,i))
     return LJ14
 
-# returns rmin, eps
-def lk_pair(t1, t2, coef):
-    if coef.has_key((t2, t1)):
-        t1, t2 = t2, t1
-    v = coef[(t1, t2)]
-    return v[0] * 2**(1/6.0), v[1]
-
-def LJ_frc(pairs, LJ14, x, t, coef14, coef, scale_14 = 1.0):
+# reps : t1, t2, oneFour? -> Rmin, eps
+def LJ_frc(pairs, LJ14, x, t, reps):
     #print len(tors)
     f = zeros(x.shape)
     for i,j in pairs:
         r = x[:,i] - x[:,j]
         drij = (sum(r*r, -1)**(-0.5))
-        rmin, eps = lk_pair(t[i], t[j], coef)
-        if (i,j) in LJ14:
-            try:
-                rmin, eps = lk_pair(t[i], t[j], coef14)
-            except KeyError:
-                eps *= scale_14
+        rmin, eps = reps(t[i], t[j], (i,j) in LJ14)
         sij = rmin*drij
         r *= (12*eps*(rmin**(-2))*(sij**14 - sij**8))[...,newaxis]
         f[:,i] += r
         f[:,j] -= r
     return f
 
-def main(argv):
+def parse_args(argv):
     parser = argparse.ArgumentParser(description='Match Them Forces')
     parser.add_argument('mol', metavar='sys.mol', type=str,
-			help='System SDF file.')
+			help='System MOL/PSF file.')
     parser.add_argument('xf', metavar='xf.npy', type=str,
 			help='Coordinate and force data.')
     parser.add_argument('out', metavar='out_dir', type=str,
@@ -153,43 +142,51 @@ def main(argv):
 		        help='Don\'t Fit LJ parameters at all.')
     parser.add_argument('--chg', action='store_true',
 		        help='Fit charges.')
-    args = parser.parse_args()
-    print(args)
-    #exit(0)
+    return parser.parse_args()
 
+def main(args):
+    # assumptions:
+    top = None
     dih = None
+    fudgeQQ = 1.0
+    L = None
+
     if args.top != None:
-        if args.top[-3:] == "prm": # charmm format
+        if args.top[-4:] == ".prm": # charmm format
             top = read_prm(args.top)
             dih = prm.dihedrals
         else: # gromacs format
             top = read_top(args.top)
+            fudgeQQ = top['defaults'][4]
     else:
 	top = None
-    out = args.out
 
-    # Read input data.
-    mol= read_mol(args.mol)
-    pdb = pdb_of_mol(mol)
-    xf = load(args.xf)
     if args.box != None:
 	pdb.L = diag(args.box)
 	if args.tilt != None:
 	    pdb.L[1,0] = args.tilt[0]
 	    pdb.L[2,0] = args.tilt[1]
 	    pdb.L[2,1] = args.tilt[2]
+    out = args.out
+
+    # Read input data.
+    if args.mol[-4:] == '.psf':
+        mol = read_psf(args.mol)
     else:
-	pdb.L = None
+        mol = read_mol(args.mol)
+    pdb = pdb_of_mol(mol)
+    pdb.L = L
+    xf  = load(args.xf)
 
     # Create topol and FM object.
     topol = topol_of_pdb(pdb, dih, args.UB, args.LJ)
     if args.LJ == False:
 	if top == None:
 	    raise LookupError, "A parameter file is required for subtracting LJ (using --noLJ)"
-	xf[:,1] -= LJ_frc(pdb.pair, onefour(pdb.tors), xf[:,0], mol.t,
-                          top.pairs, top.nbs)
+	xf[:,1] -= LJ_frc(pdb.pair, onefour(pdb.tors), xf[:,0], mol.t, top.reps)
 
-    q, mask, MQ = wrassle_es(pdb.pair, onefour(pdb.tors), mol.q, mol.t)
+    q, mask, MQ = wrassle_es(pdb.pair, onefour(pdb.tors), mol.q, \
+                             mol.t, fudgeQQ)
 
     forces = frc_match(topol, pdb, 1.0, 1.0, do_nonlin=args.chg)
     forces.add_nonlin("es", q, ES_seed, ES_frc, dES_frc,
@@ -203,21 +200,13 @@ def main(argv):
     forces.write_out(out)
 
     q = dot(MQ, forces.nonlin["es"][0])
-    # provide a minimal file from which a full chg parameter set could
-    # be written
-    PSF(charges=q).write(os.path.join(out, "molecule.psf"))
-
-# Traverse the FF terms and provide a custom write method for each.
-# Write the itp file 
-def write_itp(mol, topol, q, out):
-    with open(os.path.join(out, "topol.itp"), 'w') as f:
-        f.write('[ atoms ]\n; nr type resnr resid atom cgnr charge mass\n')
-        for i in range(len(q)):
-            f.write("%4d %-4s 1 %4s %-4s %4d %8.4f %8.4f\n"%(i+1, \
-                    mol.t[i], mol.res[i], mol.names[i], i+1,
-                    q[i], mol.m[i]))
-        # TODO: list of bonds, angles, etc.
+    # Provide a minimal file from which a full gmx parameter set can
+    # be written.
+    mol.q = q
+    mol.write_psf(os.path.join(out, "molecule.psf"))
 
 if __name__=="__main__":
-    main(sys.argv)
+    args = parse_args(sys.argv)
+    print(args)
+    main(args)
 
