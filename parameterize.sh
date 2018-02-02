@@ -1,19 +1,21 @@
-#!/bin/sh
+#!/bin/bash
 
-if [ $# -ne 4 ]; then
-    echo "Usage: $0 <in.mol> <nconf> <theory> <out.itp>"
+if [ $# -ne 3 ]; then
+    echo "Usage: $0 <in.mol> <nconf> <theory>"
     exit 1
 fi
 
 rm -fr out perm scratch
 mkdir -p out perm scratch
 
-DIR=$PWD
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 name=`basename $1 .mol`
-# 1. Generate force data for 1000 conformers.
-$DIR/gen_frc.py $1 $2 $3 $name.xf.npy
+# 1. Generate force data.
+$DIR/src/gen_frc.py $1 $2 $3 $name.xf.npy
 # 2. Perform FM with no charge or LJ fitting.
-$DIR/match.py --top $DIR/nonbond.itp --noLJ $1 $name.xf.npy out
+$DIR/src/match.py --top $DIR/nonbond.itp --noLJ $1 $name.xf.npy out
 # 3. Write the topology in Gromacs format.
-$DIR/write_top.py $1 out $4
+$DIR/gromacs/write_top.py $1 out $name.itp
+# 4. Write the topology in Charmm format.
+$DIR/charmm/write_prm.py out $name.prm

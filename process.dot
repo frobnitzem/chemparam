@@ -1,0 +1,9 @@
+digraph ChemParam {
+  "gen_confs"     [label="gen_confs(mmff94)" rank=0];
+  "gen_frc"       [label="gen_frc(theory,basis)" rank=1];
+  "match"         [label="match(LJ?,nphi?,UB?)" rank=2];
+  "gen_confs" -> "gen_frc" [label="x"];
+  "gen_frc" -> "match"     [label="xf"];
+  "match" -> "write_top"   [label="params"];
+  "match" -> "write_prm"   [label="params"];
+}

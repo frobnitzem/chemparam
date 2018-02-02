@@ -1,21 +1,20 @@
 #!/usr/bin/env python
-# Driver program for processing CHARMM-specific
+# Driver program for processing Gromacs/CHARMM-specific
 # information into PDB and cg_topol data structures
 # used by frc_solve.
 
 import sys, os, argparse
-dn = os.path.dirname
-sys.path.append(dn(dn(os.path.abspath(__file__))))
-
 from numpy import load, newaxis, sum, zeros
-from psf import read_psf
+from mol import read_mol
+from gromacs.read_top import read_top
+from charmm.psf import read_psf
+from charmm.read_prm import read_prm
 from frc_match import *
 from cg_topol import *
-from read_prm import read_prm
 
 from ewsum import ES_seed, ES_frc, dES_frc
 
-# Re-format psf data into PDB : {
+# Re-format mol/psf data into PDB : {
 #     conn : [Set Int], -- complete connection table,
 #     edge : Set (Int, Int), -- unique edges,
 #     x : Array Float (n, 3), -- example / reference config.
@@ -24,51 +23,57 @@ from ewsum import ES_seed, ES_frc, dES_frc
 #     atoms : Int, -- number of atoms
 #     L : None | Array Float (3,3),
 # }
-def pdb_of_psf(psf):
-    names = [ (psf.names[i], psf.res[i], psf.t[i]) \
-                for i in range(psf.N) ]
-    return PDB(names, psf.m, zeros((psf.N,3)),
-               set([(i,j) for i,j in psf.bonds]))
+def pdb_of_mol(mol):
+    names = [ (mol.names[i], mol.res[i], mol.t[i]) \
+                for i in range(mol.N) ]
+    return PDB(names, mol.m, zeros((mol.N,3)),
+               set([(i,j) for i,j in mol.bonds]))
 
 # Note: LJPair (as called here) currently uses an LJ-cutoff of 11 Ang.
 def topol_of_pdb(pdb, dihedrals, UB=True, LJ=True):
     # Create constraints to fix n (looked up from dihedrals).
     #   If no n, no torsion!
     def constrain_n(type):
-	t = tuple(type.split("-"))
-	if dihedrals.has_key(t):
-	    return [u[0] for u in dihedrals[t]]
-	print "Warning: no dihedral n found for type:", type
-	print("Assuming n = 3!")
-	return [3]
+        t = tuple(type.split("-"))
+        if dihedrals.has_key(t):
+            return [u[0] for u in dihedrals[t]]
+        print "Warning: no dihedral n found for type:", type
+        print("Assuming n = 3!")
+        return [3]
     def mk_polytors(*a, **b):
-	return PolyTorsion(*a, constrain_n=constrain_n, **b)
+        return PolyTorsion(*a, constrain_n=constrain_n, **b)
 
     terms = []
     terms.append(bond_terms(pdb, PolyBond))
     terms.append(angle_terms(pdb, PolyAngle))
     if UB:
 	terms.append(angle_terms(pdb, PolyUB))
-    terms.append(torsion_terms(pdb, mk_polytors))
+    if isinstance(dihedrals, dict):
+        terms.append(torsion_terms(pdb, mk_polytors))
+    else:
+        terms.append(torsion_terms(pdb, PolyTorsion))
     terms.append(improper_terms(pdb, PolyImprop))
     if LJ == "14":
-	# Achtung! Because it creates pdb.pair, this must be called first.
-	terms.append(pair_terms(pdb, LJPair, n=5))
-	terms.append(pair_n_terms(pdb, LJPair, n=4)) # 1-4 appends to pdb.pair
+        # Achtung! Because it creates pdb.pair, this must be called first.
+        terms.append(pair_terms(pdb, LJPair, n=5))
+        terms.append(pair_n_terms(pdb, LJPair, n=4)) # 1-4 appends to pdb.pair
     elif LJ:
-	terms.append(pair_terms(pdb, LJPair, n=4))
+        terms.append(pair_terms(pdb, LJPair, n=4))
     else:
 	pair_terms(pdb, LJPair, n=4) # still need to create pairlist
     return FFconcat(terms)
 
 # Creates MQ by giving 1 DOF to ea. unique charge/atom type in the input.
 # Then removes one by setting sum = 0.
-def wrassle_es(pairs, q, t):
+def wrassle_es(pairs, LJ14, q, t, scale14=0.75):
     mask = []
     for i in range(len(q)-1):
 	for j in range(i+1, len(q)):
 	    if (i,j) not in pairs:
-		mask.append((i,j, 0.0))
+                if (i,j) in LJ14:
+                    mask.append((i,j,scale14))
+                else:
+                    mask.append((i,j,0.0))
 
     # Create an extended type bundling charge and type name.
     ext_type = [(qi,ti) for qi,ti in zip(q,t)]
@@ -91,51 +96,50 @@ def wrassle_es(pairs, q, t):
 
     return un, mask, MQ
 
-def save_charges(psf, q, out):
-    open(os.path.join(out, "charges"), 'w').write(
-	  "# atom type old_chg new_chg\n" \
-        + "".join("%d %s %f %f\n"%(i+1, psf.t[i], psf.q[i], q[i]) \
-    	  for i in range(len(q))) )
-    open(os.path.join(out, "charges.str"), 'w').write(
-	 "".join("scalar charge set %f sele bynu %d end ! %s %f\n" % (\
-		    q[i], i+1, psf.t[i], psf.q[i]) \
-	 for i in range(len(q))) )
-
-def LJ_frc(pairs, tors, x, coef):
-    print coef
-    print len(tors)
-    f = zeros(x.shape)
+def onefour(tors):
     LJ14=set()
     for i,j,k,l in tors:
         if i<l:
            LJ14.add((i,l))
         else:
            LJ14.add((l,i))
+    return LJ14
+
+# returns rmin, eps
+def lk_pair(t1, t2, coef):
+    if coef.has_key((t2, t1)):
+        t1, t2 = t2, t1
+    v = coef[(t1, t2)]
+    return v[0] * 2**(1/6.0), v[1]
+
+def LJ_frc(pairs, LJ14, x, t, coef14, coef, scale_14 = 1.0):
+    #print len(tors)
+    f = zeros(x.shape)
     for i,j in pairs:
         r = x[:,i] - x[:,j]
         drij = (sum(r*r, -1)**(-0.5))
+        rmin, eps = lk_pair(t[i], t[j], coef)
         if (i,j) in LJ14:
-           eps = (coef[i][2]*coef[j][2])**(0.5)
-           rmin = coef[i][3] + coef[j][3]
-        else:
-           eps = (coef[i][0]*coef[j][0])**(0.5)
-           rmin = coef[i][1] + coef[j][1]
+            try:
+                rmin, eps = lk_pair(t[i], t[j], coef14)
+            except KeyError:
+                eps *= scale_14
         sij = rmin*drij
-        r *= (12*eps*(rmin**(-2))*(sij**(14) - sij**(8)))[...,newaxis]
+        r *= (12*eps*(rmin**(-2))*(sij**14 - sij**8))[...,newaxis]
         f[:,i] += r
         f[:,j] -= r
     return f
 
 def main(argv):
-    parser = argparse.ArgumentParser(description='Match Forces Using PSF.')
-    parser.add_argument('psf', metavar='sys.psf', type=str,
-			help='System PSF file.')
+    parser = argparse.ArgumentParser(description='Match Them Forces')
+    parser.add_argument('mol', metavar='sys.mol', type=str,
+			help='System SDF file.')
     parser.add_argument('xf', metavar='xf.npy', type=str,
 			help='Coordinate and force data.')
     parser.add_argument('out', metavar='out_dir', type=str,
 			help='Output directory name.')
-    parser.add_argument('--prm', type=str,
-		        help='Read dihedral multiplicities from prm.')
+    parser.add_argument('--top', type=str,
+		        help='Read LJ parameters from topol.')
     parser.add_argument('--box', metavar=('Lx', 'Ly', 'Lz'),
 			type=float, nargs=3, default=None,
 		        help='Box diagonal lengths.')
@@ -147,26 +151,26 @@ def main(argv):
 		        help='Don\'t Fit Urey-Bradley Terms.')
     parser.add_argument('--noLJ', dest='LJ', action='store_false',
 		        help='Don\'t Fit LJ parameters at all.')
-    parser.add_argument('--14', dest='LJ', action='store_const',
-			const="14",
-		        help='Fit LJ and Special 14 LJ parameters.')
     parser.add_argument('--chg', action='store_true',
 		        help='Fit charges.')
     args = parser.parse_args()
     print(args)
     #exit(0)
 
-    if args.prm != None:
-	prm = read_prm(args.prm)
-	dih = prm.dihedrals
+    dih = None
+    if args.top != None:
+        if args.top[-3:] == "prm": # charmm format
+            top = read_prm(args.top)
+            dih = prm.dihedrals
+        else: # gromacs format
+            top = read_top(args.top)
     else:
-	prm = None
-	dih = {}
+	top = None
     out = args.out
 
     # Read input data.
-    psf = read_psf(args.psf)
-    pdb = pdb_of_psf(psf)
+    mol= read_mol(args.mol)
+    pdb = pdb_of_mol(mol)
     xf = load(args.xf)
     if args.box != None:
 	pdb.L = diag(args.box)
@@ -180,12 +184,12 @@ def main(argv):
     # Create topol and FM object.
     topol = topol_of_pdb(pdb, dih, args.UB, args.LJ)
     if args.LJ == False:
-	if prm == None:
-	    raise LookupError, "PRM required for subtracting LJ (using --noLJ)"
-	xf[:,1] -= LJ_frc(pdb.pair, pdb.tors, xf[:,0], \
-			  [prm.nonbonded[t] for t in psf.t])
+	if top == None:
+	    raise LookupError, "A parameter file is required for subtracting LJ (using --noLJ)"
+	xf[:,1] -= LJ_frc(pdb.pair, onefour(pdb.tors), xf[:,0], mol.t,
+                          top.pairs, top.nbs)
 
-    q, mask, MQ = wrassle_es(pdb.pair, psf.q, psf.t)
+    q, mask, MQ = wrassle_es(pdb.pair, onefour(pdb.tors), mol.q, mol.t)
 
     forces = frc_match(topol, pdb, 1.0, 1.0, do_nonlin=args.chg)
     forces.add_nonlin("es", q, ES_seed, ES_frc, dES_frc,
@@ -197,10 +201,22 @@ def main(argv):
     forces.dimensionality() # double-checks well-formedness
     forces.maximize()
     forces.write_out(out)
-    if args.chg:
-	q = dot(MQ, forces.nonlin["es"][0])
-	print "charges = " + str(q)
-	save_charges(psf, q, out)
+
+    q = dot(MQ, forces.nonlin["es"][0])
+    # provide a minimal file from which a full chg parameter set could
+    # be written
+    PSF(charges=q).write(os.path.join(out, "molecule.psf"))
+
+# Traverse the FF terms and provide a custom write method for each.
+# Write the itp file 
+def write_itp(mol, topol, q, out):
+    with open(os.path.join(out, "topol.itp"), 'w') as f:
+        f.write('[ atoms ]\n; nr type resnr resid atom cgnr charge mass\n')
+        for i in range(len(q)):
+            f.write("%4d %-4s 1 %4s %-4s %4d %8.4f %8.4f\n"%(i+1, \
+                    mol.t[i], mol.res[i], mol.names[i], i+1,
+                    q[i], mol.m[i]))
+        # TODO: list of bonds, angles, etc.
 
 if __name__=="__main__":
     main(sys.argv)

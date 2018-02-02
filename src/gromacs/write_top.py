@@ -2,12 +2,9 @@
 # Parses output of FM and regurgitates in the form of a gromacs itp file.
 
 import sys, os
-dn = os.path.dirname
-sys.path.append(dn(dn(os.path.abspath(__file__))))
-
 from mol import read_mol
 from cg_topol import *
-from numpy import array, sqrt, sum, argmax, newaxis, abs, dot, pi, arange
+from numpy import array, sqrt, sum, argmax, abs, dot, pi, arange
 from read_top import TOP
 
 def main(argv):
