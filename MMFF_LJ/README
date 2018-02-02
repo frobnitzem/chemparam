@@ -1,0 +1,2 @@
+This directory is used for bootstrapping only.
+It creates 'pairs.itp' and lists MMFF94 atom types.

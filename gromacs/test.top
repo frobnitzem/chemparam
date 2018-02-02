@@ -1,0 +1,55 @@
+[ defaults ]
+; nbfunc	comb-rule	gen-pairs	fudgeLJ	fudgeQQ
+1		3		yes		0.5	0.5
+
+[ atomtypes ]
+; full atom descriptions are available in ffoplsaa.atp
+; name  bond_type    mass    charge   ptype          sigma      epsilon
+ opls_001   6      12.01100     0.500       A    3.75000e-01  4.39320e-01
+ opls_002   8      15.99940    -0.500       A    2.96000e-01  8.78640e-01
+ opls_003   7      14.00670    -0.570       A    3.25000e-01  7.11280e-01
+ opls_004   1       1.00800     0.370       A    0.00000e+00  0.00000e+00
+; tip4p-EW
+HW_tip4pew   1       1.008   0.0000  A   0.00000e+00  0.00000e+00
+OW_tip4pew   8      16.00    0.0000  A   3.16435e-01  6.80946e-01
+ MW         0	0.00000     0.000       D    0.00000e+00  0.00000e+00
+; Tc7 eps = 1.008 kJ/mol, sigma = 0.2655 nm
+; OT  eps = 0.209 kJ/mol, sigma = 0.3860 nm
+ Tc7    43     98.000      7.000     A  0.2655 1.008
+ OT     11     15.999     -2.000     A  0.3860 0.209
+
+[ bondtypes ]
+; i    j  func       b0          kb
+  OW    HW      1    0.09572   502080.0   ; For TIP4F Water - wlj 1/98  
+  OW    LP      1    0.01750   753120.0   ;          -idem-
+  C*    HC      1    0.10800   284512.0   ; 
+
+[ constrainttypes ]
+
+[ angletypes ]
+;  i    j    k  func       th0       cth
+  HW     OW     HW      1   109.500    627.600   ; For TIP4F Water - wj 1/98
+  HW     OW     LP      1    54.750    418.400   ; For TIP4F Water - wj 1/98
+  
+[ dihedraltypes ]
+;  i    j    k    l   func     coefficients
+; OPLS Fourier dihedraltypes translated to Gromacs Ryckaert-Bellemans form
+; according to the formula in the Gromacs manual.
+  Br     C      CB     CT      3      0.00000   0.00000   0.00000   0.00000   0.00000   0.00000 ; acyl halide
+  Br     C      CT     HC      3      0.75312   2.25936   0.00000  -3.01248   0.00000   0.00000 ; acyl halide
+
+[ dihedraltypes ]
+; Improper OPLS dihedrals to keep groups planar.
+; (OPLS doesnt use impropers for chiral atoms).
+; Since these functions are periodic of the form 1-cos(2*x), they are actually
+; implemented as proper dihedrals [1+cos(2*x+180)] for the moment, 
+; to keep things compatible.
+; The defines are used in ffoplsaa.rtp or directly in your .top file.
+
+; O?-C -X -Y improper torsion. C can be C_2 or C_3 too.
+; X-NO-ON-NO improper torsion.
+; N2-X-N2-N2 improper torsion.
+; Z -N?-X -Y improper torsion
+; Z -CM-X -Y improper torsion. CM can be C= too.
+; Z -CA-X -Y improper torsion. CA is any ring carbon (CA,CB,CN,CV,CW,CR,CK,CQ,CS,C*)
+
