@@ -8,7 +8,7 @@ from numpy import array, zeros, floor
 
 class PyBabel:
     def __init__(self, name):
-        mol = pybel.readfile(name[-3:], name)
+        mol = pybel.readfile(name.rsplit(".",1)[1], name)
         for mol in mol: # take only the first conformer
             break
         xyz = mol.write('xyz').split('\n')[2:]

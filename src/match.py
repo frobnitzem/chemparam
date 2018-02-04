@@ -1,18 +1,20 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.7
 # Driver program for processing Gromacs/CHARMM-specific
 # information into PDB and cg_topol data structures
 # used by frc_solve.
+#
+# This program assumes units of:
+# en ~ kcal/mol
+# dist ~ Angstroms
+# charge ~ e_0
 
 import sys, os, argparse
-from numpy import load, newaxis, sum, zeros
+from numpy import load, newaxis, sum, zeros, newaxis
 from mol import read_mol
-from gromacs.read_top import read_top
-from charmm.psf import read_psf
-from charmm.read_prm import read_prm
-from frc_match import *
-from cg_topol import *
-
-from ewsum import ES_seed, ES_frc, dES_frc
+from top import read_top
+from psf import read_psf
+from prm import read_prm
+from frc_solve import *
 
 # Re-format mol/psf data into PDB : {
 #     conn : [Set Int], -- complete connection table,
@@ -157,7 +159,7 @@ def main(args):
             dih = prm.dihedrals
         else: # gromacs format
             top = read_top(args.top)
-            fudgeQQ = top['defaults'][4]
+            fudgeQQ = top.defaults['default'][4]
     else:
 	top = None
 
@@ -189,6 +191,8 @@ def main(args):
                              mol.t, fudgeQQ)
 
     forces = frc_match(topol, pdb, 1.0, 1.0, do_nonlin=args.chg)
+    print sum([i==j for i,j in pdb.pair])
+    # assumes kcal/mol energy units and e_0 chg. units
     forces.add_nonlin("es", q, ES_seed, ES_frc, dES_frc,
                       (mask, pdb.pair, MQ, pdb.L))
     show_index(forces.topol)

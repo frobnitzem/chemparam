@@ -3,15 +3,19 @@
 
 import sys, os
 from mol import read_mol
-from cg_topol import *
+from psf import read_psf
+from frc_solve import *
 from numpy import array, sqrt, sum, argmax, abs, dot, pi, arange
-from gromacs.top import TOP
+from top import TOP
 
 def main(argv):
-    assert len(argv) == 4, "Usage: %s <mol.sdf> <param dir> <out.itp>"%argv[0]
-    mol = read_mol(argv[1])
-    top = top_of_param(argv[2], mol)
-    top.write(argv[3])
+    assert len(argv) == 3, "Usage: %s <param dir> <out.itp>"%argv[0]
+    top = top_of_param(argv[1])
+    top.write(argv[2])
+
+# necessary scales to convert to nm, kJ/mol
+dist = 0.1
+en   = 4.184
 
 def get_term(name):
     id, c = read_poly_term(name)
@@ -21,14 +25,11 @@ def get_term(name):
 def tname(n):
     return n
 
-def top_of_param(path, mol):
+def top_of_param(path):
+    mol = read_psf(os.path.join(path, "molecule.psf"))
     # fn type, comb. rule, gen-pairs, fudgeLJ, fudgeCoul
     defaults = { 'default':[1, 2, True, 1.0, 0.75] }
     atoms = {}
-    for n in sorted(set(mol.t)):
-        a = mol.t.index(n)
-        atoms[tname(n)] = 1, mol.m[a], mol.q[a], 'A', 0.1, 0.0
-
     bonds = {}
     constraints = {}
     angles = {}
@@ -41,23 +42,25 @@ def top_of_param(path, mol):
 	name = os.path.join(path, fname)
 	if tp == "pbond":
 	    id, c = get_term(name)
-	    bonds[id] = (1, -0.5*c[1]/c[2], 2*c[2])
+	    bonds[id] = (1, -0.5*c[1]/c[2]*dist, 2*c[2]*en)
 	elif tp == "pangle":
 	    id, c = get_term(name)
 	    if angles.has_key(id): # handle case where UB is present
 		r = angles[id][3:]
 	    else:
 		r = ()
-	    angles[id] = (1+4*(len(r) > 0), -to_deg*0.5*c[1]/c[2], 2*c[2]) + r
+	    angles[id] = (1+4*(len(r) > 0), -to_deg*0.5*c[1]/c[2], 2*c[2]*en) \
+                       + r
 	elif tp == "pub":
 	    id, c = get_term(name)
 	    if angles.has_key(id):
                 r = angles[id][1:]
 	    else:
 		r = 100.0, 0.0
-	    angles[id] = (5, r[0], r[1], -0.5*c[1]/c[2], 2*c[2])
+	    angles[id] = (5, r[0], r[1], -0.5*c[1]/c[2]*dist, 2*c[2]*en)
 	elif tp == "ptor":
 	    id, c = get_term(name)
+            c *= en
             # connecting to MMFF94,
             # V3 = c[3]/4.0
             # V2 = -0.5*c[2]
@@ -70,7 +73,7 @@ def top_of_param(path, mol):
 	    # just writes the line, "#IMPR <name> <K>"
 	    line = open(name).read()[0].split()
 	    id = map(tname, line[1].split("_")[1].split("-"))
-	    dihedrals[tuple(id)] = (2, 0.0, float(line[2]))
+	    dihedrals[tuple(id)] = (2, 0.0, float(line[2])*en)
 	elif tp == "ljpair":
 	    # pair_terms name = "4+%s-%s"
 	    id, c = get_term(name)
@@ -80,7 +83,12 @@ def top_of_param(path, mol):
                 raise ValueError, "Invalid LJ format."
             num = id[0].split('+')
             id = (tname(num[1]),) + id[1:]
-            nonbonded[id] = (R0, eps)
+            nonbonded[id] = (R0*dist, eps*en)
+
+    for n in sorted(set(mol.t)):
+        a = mol.t.index(n)
+        atoms[tname(n)] = (1, mol.m[a], mol.q[a], 'A') + nonbonded[(n,n)]
+
     return TOP(defaults, atoms, bonds, constraints, angles,
                dihedrals, pair14, nonbonded)
 

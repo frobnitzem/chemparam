@@ -79,7 +79,7 @@ class Mol:
             G[b[0]].add(b[1])
             G[b[1]].add(b[0])
         f.write("\n%8d !NBOND: bonds\n"%len(self.bonds))
-        f.write(blocked(self.bonds+1))
+        f.write(blocked(array(self.bonds)+1))
         ang = list_angles(G)
         f.write("\n%8d !NTHETA: angles\n"%len(ang))
         f.write(blocked(ang, 9))

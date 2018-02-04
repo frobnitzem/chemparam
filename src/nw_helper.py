@@ -1,4 +1,4 @@
-from nwchem import *
+#from nwchem import *
 import scipy.optimize
 from numpy import allclose, reshape, arange, array, ndarray, sqrt, random, cos, sin, pi, exp, zeros, diag
 fmin = scipy.optimize.fmin_bfgs

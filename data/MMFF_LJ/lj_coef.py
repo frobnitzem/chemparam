@@ -212,16 +212,16 @@ mmff_symb = {
     }
 
 # Generate an LJ table using the parameters above.
+lines = [line.split() for line in coef.split('\n') if len(line) >= 5]
+
+symb = dict([(int(tok[0]), tok[-2]) for tok in lines])
+t = [tok[-2] for tok in lines]
+# alpha-i     N-i       A-i       G-i DA Symb   Origin
+anag = [map(float,tok[1:5])+[lk_da[tok[5]]] for tok in lines]
+
+#print len(t) - len(set(t))
+
 def mk_table():
-    lines = [line.split() for line in coef.split('\n') if len(line) >= 5]
-
-    symb = dict([(int(tok[0]), tok[-2]) for tok in lines])
-    t = [tok[-2] for tok in lines]
-    # alpha-i     N-i       A-i       G-i DA Symb   Origin
-    anag = [map(float,tok[1:5])+[lk_da[tok[5]]] for tok in lines]
-
-    #print len(t) - len(set(t))
-
     rij = c_double(0.0)
     print("[ nonbond_params ]")
     print("; i j   func sigma (nm) eps (kJ/mol)")
@@ -243,5 +243,6 @@ def mk_table():
         print("    %s : '%s',"%(tok[0], tok[-2]))
     print("}")
 
-mk_table()
+if __name__=="__main__":
+    mk_table()
 

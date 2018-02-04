@@ -24,21 +24,21 @@ class TOP:
     def lk_pair(self, t1, t2, coef):
         if coef.has_key((t2, t1)):
             t1, t2 = t2, t1
-        v = coef[(t1, t2)]
-        return v[0] * 2**(1/6.0), v[1]
+        return coef[(t1, t2)]
 
     # Returns rmin, eps for a given type-pair.
+    # in units of Ang and kcal/mol
     def reps(self, t1, t2, onefour):
-        rmin, eps = self.lk_pair(t1, t2, self.nbs)
+        sigma, eps = self.lk_pair(t1, t2, self.nbs)
         if onefour:
             try:
-                rmin, eps = self.lk_pair(t1, t2, self.pairs)
+                sigma, eps = self.lk_pair(t1, t2, self.pairs)
             except KeyError: # test for gen-pairs
                 if self.defaults['default'][2]:
                     eps *= self.defaults['default'][3]
                 else:
                     raise
-        return rmin, eps
+        return sigma*10*2**(1/6.0), eps/4.184
 
     def write(self, name):
 	f = open(name, 'w')
