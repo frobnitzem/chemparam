@@ -2,7 +2,7 @@
 
 import sys, os
 #from psf import read_psf
-from frc_solve import *
+from forcesolve import *
 from numpy import array, sqrt, sum, argmax, newaxis, abs, dot, pi, arange
 from prm import PRM
 
@@ -42,7 +42,7 @@ def charmm_tor(c, tol=1e-4):
 
 def get_term(name):
     id, c = read_poly_term(name)
-    return tuple(id[1].split("-")), c
+    return tuple(id[1:]), c
 
 def prm_of_param(path):
     # Does not output an atoms section.
@@ -109,8 +109,8 @@ def prm_of_param(path):
 	elif tp == "pimprop":
 	    # cg_topol/pimprop.py:117
 	    # just writes the line, "#IMPR <name> <K>"
-	    line = open(name).read()[0].split()
-	    id = line[1].split("_")[1].split("-")
+	    line = open(name).readlines()[0].split()
+            id = line[1].split("_")[1:]
 	    impropers[tuple(id)] = float(line[2])
     return PRM(atoms, bonds, angles, dihedrals, impropers, nonbonded)
 

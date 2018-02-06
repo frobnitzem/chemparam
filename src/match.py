@@ -1,7 +1,7 @@
 #!/usr/bin/env python2.7
 # Driver program for processing Gromacs/CHARMM-specific
 # information into PDB and cg_topol data structures
-# used by frc_solve.
+# used by forcesolve.
 #
 # This program assumes units of:
 # en ~ kcal/mol
@@ -14,7 +14,7 @@ from mol import read_mol, onefour
 from top import read_top
 from psf import read_psf
 from prm import read_prm
-from frc_solve import *
+from forcesolve import *
 
 # Re-format mol/psf data into PDB : {
 #     conn : [Set Int], -- complete connection table,

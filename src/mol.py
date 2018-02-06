@@ -2,7 +2,7 @@
 from babel import PyBabel
 from numpy import array, ndarray
 from datetime import datetime
-from frc_solve import modprod
+from forcesolve import modprod
 
 # assign a name to the atom in the format: %s%d % type, num
 def name_atom(t, naming):

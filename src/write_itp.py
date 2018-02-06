@@ -4,7 +4,7 @@
 import sys, os
 from mol import read_mol
 from psf import read_psf
-from frc_solve import *
+from forcesolve import *
 from numpy import array, sqrt, sum, argmax, abs, dot, pi, arange
 from top import TOP
 
@@ -19,7 +19,7 @@ en   = 4.184
 
 def get_term(name):
     id, c = read_poly_term(name)
-    return tuple(map(tname, id[1].split("-"))), c
+    return tuple(map(tname, id[1:])), c
 
 # Insert optional name mangling scheme here:
 def tname(n):
@@ -75,8 +75,8 @@ def top_of_param(path):
 	elif tp == "pimprop":
 	    # cg_topol/pimprop.py:117
 	    # just writes the line, "#IMPR <name> <K>"
-	    line = open(name).read()[0].split()
-	    id = map(tname, line[1].split("_")[1].split("-"))
+	    line = open(name).readlines()[0].split()
+            id = map(tname, line[1].split("_")[1:])
 	    dihedrals[tuple(id)] = (2, 0.0, float(line[2])*en)
 	elif tp == "ljpair":
 	    # pair_terms name = "4+%s-%s"
