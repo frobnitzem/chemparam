@@ -35,7 +35,7 @@ class TOP:
                 sigma, eps = self.lk_pair(t1, t2, self.pairs)
             except KeyError: # test for gen-pairs
                 if self.defaults['default'][2]:
-                    eps *= self.defaults['default'][3]
+                    eps = eps*self.defaults['default'][3]
                 else:
                     raise
         return sigma*10*2**(1/6.0), eps/4.184

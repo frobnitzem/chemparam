@@ -28,7 +28,8 @@ def tname(n):
 def top_of_param(path):
     mol = read_psf(os.path.join(path, "molecule.psf"))
     # fn type, comb. rule, gen-pairs, fudgeLJ, fudgeCoul
-    defaults = { 'default':[1, 2, True, 1.0, 0.75] }
+    #defaults = { 'default':[1, 2, True, 1.0, 0.75] }
+    defaults = {}
     atoms = {}
     bonds = {}
     constraints = {}
@@ -42,7 +43,7 @@ def top_of_param(path):
 	name = os.path.join(path, fname)
 	if tp == "pbond":
 	    id, c = get_term(name)
-	    bonds[id] = (1, -0.5*c[1]/c[2]*dist, 2*c[2]*en)
+	    bonds[id] = (1, -0.5*c[1]/c[2]*dist, 2*c[2]*en/dist**2)
 	elif tp == "pangle":
 	    id, c = get_term(name)
 	    if angles.has_key(id): # handle case where UB is present
@@ -57,7 +58,10 @@ def top_of_param(path):
                 r = angles[id][1:]
 	    else:
 		r = 100.0, 0.0
-	    angles[id] = (5, r[0], r[1], -0.5*c[1]/c[2]*dist, 2*c[2]*en)
+            r0 = -0.5*c[1]/c[2]*dist
+            k  = 2*c[2]*en/dist**2
+            if k > 1e-6: # was zeroed during fitting
+                angles[id] = (5, r[0], r[1], r0, k)
 	elif tp == "ptor":
 	    id, c = get_term(name)
             c *= en
@@ -83,11 +87,18 @@ def top_of_param(path):
                 raise ValueError, "Invalid LJ format."
             num = id[0].split('+')
             id = (tname(num[1]),) + id[1:]
+            if eps < 1e-9:
+                eps = 0.0
+                R0 = 3.0
             nonbonded[id] = (R0*dist, eps*en)
 
     for n in sorted(set(mol.t)):
         a = mol.t.index(n)
-        atoms[tname(n)] = (1, mol.m[a], mol.q[a], 'A') + nonbonded[(n,n)]
+        try:
+            nb = nonbonded[(n,n)]
+        except KeyError:
+            nb = (0.3, 0.0)
+        atoms[tname(n)] = (1, mol.m[a], mol.q[a], 'A') + nb
 
     return TOP(defaults, atoms, bonds, constraints, angles,
                dihedrals, pair14, nonbonded)

@@ -10,7 +10,7 @@
 
 import sys, os, argparse
 from numpy import load, newaxis, sum, zeros, newaxis
-from mol import read_mol
+from mol import read_mol, onefour
 from top import read_top
 from psf import read_psf
 from prm import read_prm
@@ -98,18 +98,8 @@ def wrassle_es(pairs, LJ14, q, t, scale14=0.75):
 
     return un, mask, MQ
 
-def onefour(tors):
-    LJ14=set()
-    for i,j,k,l in tors:
-        if i<l:
-           LJ14.add((i,l))
-        else:
-           LJ14.add((l,i))
-    return LJ14
-
 # reps : t1, t2, oneFour? -> Rmin, eps
 def LJ_frc(pairs, LJ14, x, t, reps):
-    #print len(tors)
     f = zeros(x.shape)
     for i,j in pairs:
         r = x[:,i] - x[:,j]
@@ -129,8 +119,8 @@ def parse_args(argv):
 			help='Coordinate and force data.')
     parser.add_argument('out', metavar='out_dir', type=str,
 			help='Output directory name.')
-    parser.add_argument('--top', type=str,
-		        help='Read LJ parameters from topol.')
+    parser.add_argument('--param', type=str,
+		        help='Read LJ parameters from prm / top file.')
     parser.add_argument('--box', metavar=('Lx', 'Ly', 'Lz'),
 			type=float, nargs=3, default=None,
 		        help='Box diagonal lengths.')
@@ -148,20 +138,18 @@ def parse_args(argv):
 
 def main(args):
     # assumptions:
-    top = None
+    param = None
     dih = None
     fudgeQQ = 1.0
     L = None
 
-    if args.top != None:
-        if args.top[-4:] == ".prm": # charmm format
-            top = read_prm(args.top)
-            dih = prm.dihedrals
+    if args.param != None:
+        if args.param[-4:] == ".prm": # charmm format
+            param = read_prm(args.param)
+            dih = param.dihedrals
         else: # gromacs format
-            top = read_top(args.top)
-            fudgeQQ = top.defaults['default'][4]
-    else:
-	top = None
+            param = read_top(args.param)
+            fudgeQQ = param.defaults['default'][4]
 
     if args.box != None:
 	pdb.L = diag(args.box)
@@ -183,15 +171,17 @@ def main(args):
     # Create topol and FM object.
     topol = topol_of_pdb(pdb, dih, args.UB, args.LJ)
     if args.LJ == False:
-	if top == None:
-	    raise LookupError, "A parameter file is required for subtracting LJ (using --noLJ)"
-	xf[:,1] -= LJ_frc(pdb.pair, onefour(pdb.tors), xf[:,0], mol.t, top.reps)
+        if param == None:
+            raise LookupError, "A parameter file is required for subtracting LJ (using --noLJ)."
+        #print LJ_frc(pdb.pair, onefour(pdb.tors), xf[:,0], mol.t, param.reps)[0]
+        #exit(0)
+        xf[:,1] -= LJ_frc(pdb.pair, onefour(pdb.tors), xf[:,0], mol.t, param.reps)
 
     q, mask, MQ = wrassle_es(pdb.pair, onefour(pdb.tors), mol.q, \
                              mol.t, fudgeQQ)
 
     forces = frc_match(topol, pdb, 1.0, 1.0, do_nonlin=args.chg)
-    print sum([i==j for i,j in pdb.pair])
+    assert sum([i==j for i,j in pdb.pair]) == 0
     # assumes kcal/mol energy units and e_0 chg. units
     forces.add_nonlin("es", q, ES_seed, ES_frc, dES_frc,
                       (mask, pdb.pair, MQ, pdb.L))
@@ -208,6 +198,8 @@ def main(args):
     # be written.
     mol.q = q
     mol.write_psf(os.path.join(out, "molecule.psf"))
+    mol.write_itp(os.path.join(out, "molecule.itp"), \
+                  os.path.basename(args.mol).rsplit('.',1)[0])
 
 if __name__=="__main__":
     args = parse_args(sys.argv)

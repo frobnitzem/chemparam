@@ -20,8 +20,8 @@ def start_sim(elems, x, chg):
     #               "vectors %s.mp2nos"%db['file_prefix']]))
     return db
 
-Bohr = 0.52917721067 # Ang / Bohr
-fac  = 2625.499638/4.184/Bohr # kcal/mol-Ang / (Har/Bohr)
+Bohr2Ang = 0.52917721067 # Ang / Bohr
+HarBohr2KcalAng = 2625.499638/4.184/Bohr2Ang # kcal/mol-Ang / (Har/Bohr)
 
 # Collect N MC samples of x,f data from QM.
 def main(argv):
@@ -38,7 +38,7 @@ def main(argv):
     xf = zeros((N,2,mol.atoms,3))
     i = 0
     for x, E in mc_geom(mol.x, mol.en, N, beta=1./0.6):
-        xf[i,0] = x*0.1 # nm
+        xf[i,0] = x # Ang
         xf[i,1] = -mol.de(x) # kcal/Ang
         #xf[i,1] = -get_de(db, x, theory=theory)*fac
         i += 1
