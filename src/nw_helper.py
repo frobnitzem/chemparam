@@ -1,4 +1,4 @@
-#from nwchem import *
+from nwchem import *
 import scipy.optimize
 from numpy import allclose, reshape, arange, array, ndarray, sqrt, random, cos, sin, pi, exp, zeros, diag
 fmin = scipy.optimize.fmin_bfgs
@@ -33,6 +33,10 @@ def get_de(db, x=None, theory="scf"):
     if isinstance(x, ndarray):
         print x.shape
         set_geom(db, x)
+    #if theory in ["mp2", "ccsd"]:
+    #    if not db.has_key("tce:model"):
+    #        tce(db, "tce; %s; print none; end\n"%theory, "tce")
+    #    theory = "tce"
     nwtask(db, "%s gradient"%theory)
     return db["%s:gradient"%theory].reshape((-1, 3))
 

@@ -12,7 +12,10 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 name=`basename $1 .mol`
 # 1. Generate force data.
-$DIR/src/gen_frc.py $1 $2 $3 $name.xf.npy
+$DIR/src/gen_confs.py $1 $2 $name.xf.npy
+if [ x"$3" != x"mmff" ]; then
+    mpirun -np 16 $DIR/src/gen_frc.py $1 $3 $name.xf.npy | head -n100
+fi
 # 2. Perform FM with no charge or LJ fitting.
 $DIR/src/match.py --param $DIR/data/mmff94.itp --noLJ $1 $name.xf.npy out
 # 3. Write the topology in Gromacs format.
