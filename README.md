@@ -28,16 +28,16 @@ and CHARMM `prm` formats.
 
 * [Python 2 or 3](https://www.python.org)
 * [OpenBabel 2.3](https://openbabel.org)
-** requires pybel option: `apt-get install python-openbabel`
+ * requires pybel option: `apt-get install python-openbabel`
 * [ForceSolve](https://github.com/frobnitzem/forcesolve)
-** Copy it to any site-packages, there's no C to compile there
+ * Copy it to any site-packages, there's no C to compile there
 * Optional: [LibNWChem](https://github.com/nwchemgit/nwchem/pull/13)
-** Use NWChem to compute your forces.
-** If you write a wrapper to [Psi4](http://www.psicode.org/) or [PySCF](http://sunqm.github.io/pyscf), let me know!
+ * Use NWChem to compute your forces.
+ * If you write a wrapper to [Psi4](http://www.psicode.org/) or [PySCF](http://sunqm.github.io/pyscf), let me know!
 
 ## Running
 
-The `parameterize.sh` script should be a one-shot wonder.  Try it out on your favorite `mol` file while enjoying as many handfuls of popcorn as possible (but you probably won't get past 2).
+The `parameterize.sh` script should be a one-shot wonder.  If you didn't install libnwchem, your only option is theory=mmff.  Try it out on your favorite `mol` file while enjoying as many handfuls of popcorn as possible (but you probably won't get past 3).
 
 Most of the work is done by `match.py`, which has self-explanatory long-style commandline options.  No extra assembly required, no BS.
 
