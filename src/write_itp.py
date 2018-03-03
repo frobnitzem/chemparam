@@ -71,13 +71,13 @@ def top_of_param(path):
             # V1 = c[1] + 3*c[3]/4.0
             # V0 = c[1] - c[2] + c[3]
             const = c[0] + c[1] - c[2] + c[3]
-	    dihedrals[id] = (3, const, -c[1], c[2], -c[3], c[4], 0.0)
+	    dihedrals[id + (3,)] = (const, -c[1], c[2], -c[3], c[4], 0.0)
 	elif tp == "pimprop":
 	    # cg_topol/pimprop.py:117
 	    # just writes the line, "#IMPR <name> <K>"
 	    line = open(name).readlines()[0].split()
             id = map(tname, line[1].split("_")[1:])
-	    dihedrals[tuple(id)] = (2, 0.0, float(line[2])*en)
+	    dihedrals[tuple(id) + (2,)] = (0.0, float(line[2])*en)
 	elif tp == "ljpair":
 	    # pair_terms name = "4+%s-%s"
 	    id, c = get_term(name)

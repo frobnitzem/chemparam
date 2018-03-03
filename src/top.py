@@ -106,14 +106,14 @@ def write_angle(k, v): # t, theta0, cth, [r0, kUB]
         return "%-6s %-6s %-6s %d %7.3f %7.3f"%(k+v)
 
 # i    j    k    l   func     coefficients
-def read_dihedral(p, tok):
-    p[tuple(tok[:4])] = (int(tok[4]),) + tuple(map(float, tok[5:]))
-
 # either/or
 # 2 chi0 K
 # 3 C0 C1 ...
-def write_dihedral(k, v): # [ t, k0, k1, k2, k3, k4, k5 ]
-    return "%-6s %-6s %-6s %-6s %d "%(k + (v[0],)) + \
+def read_dihedral(p, tok):
+    p[tuple(tok[:4]) + (int(tok[4]),)] = tuple(map(float, tok[5:]))
+
+def write_dihedral(k, v): # [ k0, k1, k2, k3, k4, k5 ]
+    return "%-6s %-6s %-6s %-6s %d "%(k) + \
                 " ".join("%9.5f"%u for u in v[1:])
 
 # i    j   1  sigma  eps
