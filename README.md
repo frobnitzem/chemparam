@@ -15,6 +15,9 @@ it runs forcesolve to match parameters to the best of the
 fitting form's ability and outputs them in both Gromacs `itp`
 and CHARMM `prm` formats.
 
+If you just want to run this code (as opposed to develop on it), visit
+the [ChemParam Server](http://predictivestatmech.org:300) instead.
+
 ## Controllable Options
 
 1. Can fit pairwise LJ terms or assign from an existing parameter file.
@@ -28,18 +31,20 @@ and CHARMM `prm` formats.
 
 * [Python 2 or 3](https://www.python.org)
 * [OpenBabel 2.3](https://openbabel.org)
- * requires pybel option: `apt-get install python-openbabel`
+  * requires pybel option: `apt-get install python-openbabel`
 * [ForceSolve](https://github.com/frobnitzem/forcesolve)
- * Copy it to any site-packages, there's no C to compile there
+  * Copy it to any site-packages, there's no C to compile there
 * Optional: [LibNWChem](https://github.com/nwchemgit/nwchem/pull/13)
- * Use NWChem to compute your forces.
- * If you write a wrapper to [Psi4](http://www.psicode.org/) or [PySCF](http://sunqm.github.io/pyscf), let me know!
+  * Use NWChem to compute your forces.
+  * If you write a wrapper to [Psi4](http://www.psicode.org/) or [PySCF](http://sunqm.github.io/pyscf), let me know!
 
 ## Running
 
 The `parameterize.sh` script should be a one-shot wonder.  If you didn't install libnwchem, your only option is theory=mmff.  Try it out on your favorite `mol` file while enjoying as many handfuls of popcorn as possible (but you probably won't get past 3).
 
 Most of the work is done by `match.py`, which has self-explanatory long-style commandline options.  No extra assembly required, no BS.
+
+The `data` directory contains some useful helper scripts and a transcription of Halgren's "future-proof" van der Waals parameters (J. Am. Chem. Soc., Vol. 114, No. 20, 1992).
 
 ## Contributing
 
