@@ -2,6 +2,8 @@
 # #include statements must be removed using "gromacs grompp -pp" option
 # or manually pasting includes (maybe cpp)
 
+__all__ = ["read_top"]
+
 # As implemented here, the top file contains only forcefield
 # information, suitable for including in the ff-topology
 # -- not molecule-specific information.

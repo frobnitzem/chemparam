@@ -11,6 +11,8 @@ cutnb 14.0 ctofnb 12.0 ctonnb 10.0 eps 1.0 e14fac 1.0 wmin 1.5
 # setting NBXMod 5 means skipping 1-2, 1-3 interactions and treating 1-4 interactions specially
 # e14fac is a 1-4 scaling for both ES and LJ (can usually be assumed 1.0)
 
+__all__ = ["read_prm"]
+
 class PRM:
     def __init__(self, atoms={}, bonds={},
                        angles={}, dihedrals={},

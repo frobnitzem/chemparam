@@ -17,9 +17,12 @@ if [ x"$3" != x"mmff" ]; then
     mpirun -np 16 $DIR/src/gen_frc.py $1 $3 $name.xf.npy >nwchem.log
     head -n100 nwchem.log
 fi
-# 2. Perform FM with no charge or LJ fitting.
-$DIR/src/match.py --param $DIR/data/mmff94.itp --noLJ $1 $name.xf.npy out
-# 3. Write the topology in Gromacs format.
+# 2. Create a list of terms to match based on bond connectivity
+#    and partial charges based from mmff94.
+$DIR/src/list_terms.py $1 $name.itp
+# 3. Perform FM with no charge or LJ fitting.
+$DIR/src/match.py --param $DIR/data/mmff94.itp --noLJ $name.itp $name.xf.npy out
+# 4. Write the topology in Gromacs format.
 $DIR/src/write_itp.py out $name.itp
-# 4. Write the topology in Charmm format.
+# 5. Write the topology in Charmm format.
 $DIR/src/write_prm.py out $name.prm

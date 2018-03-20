@@ -1,8 +1,8 @@
 #!/usr/bin/env python2.7
 
 import sys
-from nw_helper import *
 from numpy import *
+from geom import *
 import numpy.linalg as la
 from babel import PyBabel
 

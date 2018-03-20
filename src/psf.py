@@ -1,9 +1,9 @@
 # Methods for parsing a PSF file.
 from numpy import array, reshape
 
-import sys, os # required for relative import
-dn = os.path.dirname
-sys.path.append(dn(dn(os.path.abspath(__file__))))
+#import sys, os # required for relative import
+#dn = os.path.dirname
+#sys.path.append(dn(dn(os.path.abspath(__file__))))
 from mol import Mol
 
 __all__ = ["read_psf"]
