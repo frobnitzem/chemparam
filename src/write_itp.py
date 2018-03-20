@@ -70,8 +70,10 @@ def top_of_param(path):
             # V2 = -0.5*c[2]
             # V1 = c[1] + 3*c[3]/4.0
             # V0 = c[1] - c[2] + c[3]
-            const = c[0] + c[1] - c[2] + c[3]
-	    dihedrals[id + (3,)] = (const, -c[1], c[2], -c[3], c[4], 0.0)
+            for i in range(1, len(c), 2): # switch zero to 180 deg.
+                c[i] *= -1.0
+            c[0] = -sum(c[1:]) # set E(0 deg at x = 1) = 0
+            dihedrals[id + (3,)] = tuple(c)
 	elif tp == "pimprop":
 	    # cg_topol/pimprop.py:117
 	    # just writes the line, "#IMPR <name> <K>"
