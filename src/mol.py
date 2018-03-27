@@ -72,7 +72,7 @@ class Mol:
             self.resn = [1 for a in atoms]
 
     def write_itp(self, name, title=None):
-        itp = self.to_itp(title)
+        itp = self.to_itp(self.name)
         if title is not None:
             itp.moleculetype['name'] = title
         itp.write(name)

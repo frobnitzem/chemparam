@@ -35,9 +35,21 @@ def main(args):
     # Read input data.
     if args.mol[-4:] == '.psf':
         mol = read_psf(args.mol)
+        mol.name = os.path.basename(args.mol).rsplit('.',1)[0]
     else:
         mol = read_mol(args.mol)
-    mol.write_itp(out, os.path.basename(args.mol).rsplit('.',1)[0])
+
+    itp = mol.to_itp(mol.name)
+
+    # Modify itp terms:
+    if not args.UB: # switch UB terms to harmonic only
+        for k,v in itp.angles.iteritems():
+            if v == 5:
+                itp.angles[k] = 1
+    if not args.pairs: # Remove special 1-4 pair list:
+        itp.pairs = {}
+        itp.moleculetype['nrexcl'] = 2 # and auto-include them
+    itp.write(out)
 
 if __name__=="__main__":
     args = parse_args(sys.argv)

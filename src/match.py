@@ -111,12 +111,13 @@ def topol_of_itp(pdb, itp, dihedrals, LJ=True):
     terms.append(improper_terms(pdb, PolyImprop, impr))
 
     # This creates pdb.pair:
+    print itp.moleculetype
     if LJ:
-        terms.append(pair_terms(pdb, LJPair, n=5))
-        # 1-4 additions to pdb.pair
-        terms.append(pair_n_terms(pdb, LJPair, n=4, pair_n=itp.pairs.keys()))
-    else:
-	pair_terms(pdb, LJPair, n=5) # still need to create pairlist
+        b = itp.moleculetype['nrexcl'] # bonds to exclude
+        terms.append(pair_terms(pdb, LJPair, n=b+2)) # add 2 to get first 'active' atom number
+        terms.append(pair_n_terms(pdb, LJPair, n=b+1, pair_n=itp.pairs.keys()))
+    else: # still need to create pairlist
+	pair_terms(pdb, LJPair, n=itp.moleculetype['nrexcl']+2)
         pdb.pair |= set( itp.pairs.keys() )
 
     return FFconcat(terms)

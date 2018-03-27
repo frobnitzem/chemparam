@@ -53,11 +53,11 @@ END
     def reps(self, t1, t2, onefour):
         coef = self.nonbonded
         if onefour:
-            eps = (coef[i][2]*coef[j][2])**(0.5)
-            rmin = coef[i][3] + coef[j][3]
+            eps = (coef[t1][2]*coef[t2][2])**(0.5)
+            rmin = coef[t1][3] + coef[t2][3]
         else:
-            eps = (coef[i][0]*coef[j][0])**(0.5)
-            rmin = coef[i][1] + coef[j][1]
+            eps = (coef[t1][0]*coef[t2][0])**(0.5)
+            rmin = coef[t1][1] + coef[t2][1]
         return rmin, eps
 
 def write_atom(k,v): # (n, mass)
