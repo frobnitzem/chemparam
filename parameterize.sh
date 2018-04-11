@@ -23,6 +23,6 @@ $DIR/src/list_terms.py $1 $name.itp
 # 3. Perform FM with no charge or LJ fitting.
 $DIR/src/match.py --param $DIR/data/mmff94.itp --noLJ $name.itp $name.xf.npy out
 # 4. Write the topology in Gromacs format.
-$DIR/src/write_itp.py out $name.itp
+$DIR/src/write_itp.py out $name.top
 # 5. Write the topology in Charmm format.
 $DIR/src/write_prm.py out $name.prm

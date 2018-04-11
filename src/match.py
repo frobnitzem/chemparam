@@ -20,14 +20,14 @@ from forcesolve import *
 # Creates MQ by giving 1 DOF to ea. unique charge/atom type in the input.
 # Then removes one by setting sum = 0.
 def wrassle_es(pairs, LJ14, q, t, scale14=0.75):
-    mask = []
+    mask = {}
     for i in range(len(q)-1):
 	for j in range(i+1, len(q)):
 	    if (i,j) not in pairs:
                 if (i,j) in LJ14:
-                    mask.append((i,j,scale14))
+                    mask[(i,j)] = scale14
                 else:
-                    mask.append((i,j,0.0))
+                    mask[(i,j)] = 0.0
 
     # Create an extended type bundling charge and type name.
     ext_type = [(qi,ti) for qi,ti in zip(q,t)]
@@ -86,11 +86,11 @@ def pdb_of_itp(mol, L):
     return pdb
 
 # Note: LJPair (as called here) currently uses an LJ-cutoff of 11 Ang.
-def topol_of_itp(pdb, itp, dihedrals, LJ=True):
+def topol_of_itp(pdb, itp, ubs, dihedrals, LJ=True):
     # Create constraints to fix n (looked up from dihedrals).
     #   If no n, no torsion!
     def constrain_n(ty):
-        t = tuple(ty.split("-"))
+        t = tuple(ty.split("_"))
         if dihedrals.has_key(t):
             return [u[0] for u in dihedrals[t]]
         return None # no constraint
@@ -100,8 +100,21 @@ def topol_of_itp(pdb, itp, dihedrals, LJ=True):
     terms = []
     terms.append(bond_terms(pdb, PolyBond, itp.bonds.keys()))
     terms.append(angle_terms(pdb, PolyAngle, itp.angles.keys()))
-    terms.append(angle_terms(pdb, PolyUB, \
-                 [k for k,v in itp.angles.iteritems() if v == 5]))
+    if isinstance(ubs, dict): # check for UB presence before fitting
+        def has_ub(ijk):
+            i,j,k = ijk
+            t = pdb.names[i][2], pdb.names[j][2], pdb.names[k][2]
+            if t[0] > t[2]:
+                t = pdb.names[k][2], pdb.names[j][2], pdb.names[i][2]
+            if not ubs.has_key(t): # default = fit the UB term
+                return True
+            return len(ubs[t]) == 4 # check presence in ubs
+        print filter(has_ub, itp.angles.keys())
+        terms.append(angle_terms(pdb, PolyUB, \
+                     filter(has_ub, itp.angles.keys())))
+    else:
+        terms.append(angle_terms(pdb, PolyUB, \
+                     [k for k,v in itp.angles.iteritems() if v == 5]))
     tors = [k for k,v in itp.dihedrals.iteritems() if v != 2]
     impr = [k for k,v in itp.dihedrals.iteritems() if v == 2]
     if isinstance(dihedrals, dict):
@@ -149,6 +162,7 @@ def main(args):
     # assumptions:
     param = None
     dih = None
+    ubs = None
     fudgeQQ = 1.0
     L = None
 
@@ -156,6 +170,7 @@ def main(args):
         if args.param[-4:] == ".prm": # charmm format
             param = read_prm(args.param)
             dih = param.dihedrals
+            ubs = param.angles
         else: # gromacs format
             param = read_top(args.param)
             fudgeQQ = param.defaults['default'][4]
@@ -175,7 +190,7 @@ def main(args):
     # Create topol and FM object.
     pdb = pdb_of_itp(itp, L)
     mol = mol_of_itp(itp) # easier access to m, t, and q arrays
-    topol = topol_of_itp(pdb, itp, dih, args.LJ)
+    topol = topol_of_itp(pdb, itp, ubs, dih, args.LJ)
     pairs = pdb.pair
     LJ14 = set(itp.pairs.keys())
     if args.LJ == False:
@@ -188,12 +203,12 @@ def main(args):
     forces = frc_match(topol, pdb, 1.0, 1.0, do_nonlin=args.chg)
     assert sum([i==j for i,j in pairs]) == 0
     # assumes kcal/mol energy units and e_0 chg. units
-    forces.add_nonlin("es", q, ES_seed, ES_frc, dES_frc, (mask, pairs, MQ, L))
+    forces.add_nonlin("es", q, ES_seed, ES_frc, dES_frc, (mask, MQ, L))
     show_index(forces.topol)
 
     # Do work.
     forces.append(xf[:,0], xf[:,1])
-    forces.dimensionality() # double-checks well-formedness
+    forces.dimensionality(1e-7) # double-checks well-formedness
     forces.maximize()
     forces.write_out(out)
 

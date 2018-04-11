@@ -90,6 +90,21 @@ def writeem(f1, f, kv):
     for key in sorted(kv.keys()):
 	f.write(f1(key, kv[key]) + "\n")
 
+# [[String]] -> {(String,String,String) : [Float,Float] | [Float]*4 }
+# e.g. CG3RC1 CG3C31 HGA2     34.50    110.10   22.53 2.179 
+# either ktheta, theta0 or ktheta, theta0, kub, ub0
+def read_angles(words):
+    p = {}
+    for line in words:
+        if len(line) < 5:
+            continue
+        if line[0] > line[2]: # textual sort end-points
+            t = line[2]
+            line[2] = line[0]
+            line[0] = t
+        p[tuple(line[:3])] = map(float, line[3:])
+    return p
+
 # [[String]] -> {[(String,String,String,String)] : (n=Int,k=Float,delta=Float) }
 def read_dihedrals(words):
     p = {}
@@ -139,6 +154,7 @@ def read_prm(name):
     parse = { 'dihedrals': read_dihedrals,
               'impropers': read_impropers,
               'nonbonded': read_nonbonded,
+              'angles':    read_angles,
             }
     # parse output
     out = {}
