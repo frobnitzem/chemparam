@@ -11,6 +11,7 @@ cutnb 14.0 ctofnb 12.0 ctonnb 10.0 eps 1.0 e14fac 1.0 wmin 1.5
 # setting NBXMod 5 means skipping 1-2, 1-3 interactions and treating 1-4 interactions specially
 # e14fac is a 1-4 scaling for both ES and LJ (can usually be assumed 1.0)
 
+from numpy import isnan
 __all__ = ["read_prm"]
 
 class PRM:
@@ -79,9 +80,14 @@ def write_improper(k, v): # K
     return "%-6s %-6s %-6s %-6s  %10.4f  0     0.00"%(k + (v,))
 
 def write_nb(k, v): # -eps R0
-    if isinstance(k, str):
-	s = "%-6s  0.0   %10.4f     %0.4f"%(k, -v[0],v[1])
-    s = "%-6s %-6s  %10.4f     %0.4f"%(k[0], k[1], -v[0],v[1])
+    if isinstance(k, str): # types
+	s = "%-6s  0.0 "%(k)
+    else:
+        s = "%-6s %-6s"%(k[0], k[1])
+
+    if isnan(v[0]): # missing data
+        return s + "  %10.4f     %0.4f ! only 1,4 present"%(-v[2],v[3])
+    s += "  %10.4f     %0.4f"%(-v[0],v[1])
     if len(v) >= 4: # Write special 1,4 2nd.
 	s += "  %10.4f     %0.4f"%(-v[2],v[3])
     return s

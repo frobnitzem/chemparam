@@ -89,19 +89,14 @@ def prm_of_param(path):
 	    if "+" in id[0]: # fix "4+type_type" notation
 		num = id[0].split('+')
 		id = (num[1],) + id[1:]
-		if num[0] == '4':
-		    nonbonded[id] = [eps, R0]
-		elif num[0] == '5':
-		    if nonbonded.has_key(id):
-			nonbonded[id][0:2] = [eps, R0]
-		    else:
-			nonbonded[id] = [eps, R0, nan, nan]
-		else:
-		    raise ValueError, "LJ pairs are not 4+ or 5+?"
+                if nonbonded.has_key(id):
+                    nonbonded[id][0:2] = [eps, R0]
+                else:
+                    nonbonded[id] = [eps, R0]
 	    else:
 		if id[0][0:3] != "1,4":
 		    raise ValueError, "Special LJ pairs not 1,4?"
-		id = (id[0][3:],) + id[1:]
+		id = id[1:]
 		if nonbonded.has_key(id):
 		    nonbonded[id][2:] = eps, R0
 		else:
