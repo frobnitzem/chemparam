@@ -10,24 +10,22 @@
 
 import sys, os, argparse
 from numpy import load, newaxis, sum, zeros, newaxis
-from mol import read_mol, onefour, mol_of_itp
+from mol import read_mol
 from top import read_top
-from itp import read_itp
 from psf import read_psf
 from prm import read_prm
 from forcesolve import *
 
 # Creates MQ by giving 1 DOF to ea. unique charge/atom type in the input.
 # Then removes one by setting sum = 0.
-def wrassle_es(pairs, LJ14, q, t, scale14=0.75):
+def wrassle_es(excl, one4, q, t, scale14=0.75):
     mask = {}
     for i in range(len(q)-1):
 	for j in range(i+1, len(q)):
-	    if (i,j) not in pairs:
-                if (i,j) in LJ14:
-                    mask[(i,j)] = scale14
-                else:
-                    mask[(i,j)] = 0.0
+	    if (i,j) in excl:
+                mask[(i,j)] = 0.0
+            elif (i,j) in one4:
+                mask[(i,j)] = scale14
 
     # Create an extended type bundling charge and type name.
     ext_type = [(qi,ti) for qi,ti in zip(q,t)]
@@ -50,15 +48,19 @@ def wrassle_es(pairs, LJ14, q, t, scale14=0.75):
 
     return un, mask, MQ
 
-# pairs : set( (i : int, j : int | 0 <= i < j < N) )
+# excl : set( (i : int, j : int | 0 <= i < j < N) )
 # LJ14 : set( (i : int,  j : int | 0 <= i < j < N) )
 # x    : array(float, (N,3))
 # t    : [string] | len == N
 # reps : (t1 : string, t2 : string, oneFour? : bool) ->
 #                                       (Rmin, eps) : (float, float)
-def LJ_frc(pairs, LJ14, x, t, reps):
+def LJ_frc(excl, LJ14, x, t, reps):
     f = zeros(x.shape)
-    for i,j in pairs:
+    for i in range(len(t)):
+      for j in range(i+1, len(t)):
+        if (i,j) in excl:
+            continue
+        print i,j, (i,j) in LJ14, t[i], t[j]
         r = x[:,i] - x[:,j]
         drij = (sum(r*r, -1)**(-0.5))
         rmin, eps = reps(t[i], t[j], (i,j) in LJ14)
@@ -77,74 +79,24 @@ def LJ_frc(pairs, LJ14, x, t, reps):
 #     atoms : Int, -- number of atoms
 #     L : None | Array Float (3,3),
 # }
-def pdb_of_itp(mol, L):
-    names = [ (a['name'], a['res'], a['t']) for a in mol.atoms ]
-    m = array( [a['m'] for a in mol.atoms ] )
-    x = array( [a['x'] for a in mol.atoms ] )
-    pdb = PDB(names, m, x, set([(i,j) for i,j in mol.bonds.keys()]))
+def pdb_of_mol(mol, L):
+    names = [ (mol.names[i], mol.res[i], mol.t[i]) for i in range(mol.N) ]
+    pdb = PDB(names, mol.m, mol.x, mol.bonds)
     pdb.L = L
     return pdb
 
-# Note: LJPair (as called here) currently uses an LJ-cutoff of 11 Ang.
-def topol_of_itp(pdb, itp, ubs, dihedrals, LJ=True):
-    # Create constraints to fix n (looked up from dihedrals).
-    #   If no n, no torsion!
-    def constrain_n(ty):
-        t = tuple(ty.split("_"))
-        if dihedrals.has_key(t):
-            return [u[0] for u in dihedrals[t]]
-        return None # no constraint
-    def mk_polytors(*a, **b):
-        return PolyTorsion(*a, constrain_n=constrain_n, **b)
-
-    terms = []
-    terms.append(bond_terms(pdb, PolyBond, itp.bonds.keys()))
-    terms.append(angle_terms(pdb, PolyAngle, itp.angles.keys()))
-    if isinstance(ubs, dict): # check for UB presence before fitting
-        def has_ub(ijk):
-            i,j,k = ijk
-            t = pdb.names[i][2], pdb.names[j][2], pdb.names[k][2]
-            if t[0] > t[2]:
-                t = pdb.names[k][2], pdb.names[j][2], pdb.names[i][2]
-            if not ubs.has_key(t): # default = fit the UB term
-                return True
-            return len(ubs[t]) == 4 # check presence in ubs
-        print filter(has_ub, itp.angles.keys())
-        terms.append(angle_terms(pdb, PolyUB, \
-                     filter(has_ub, itp.angles.keys())))
-    else:
-        terms.append(angle_terms(pdb, PolyUB, \
-                     [k for k,v in itp.angles.iteritems() if v == 5]))
-    tors = [k for k,v in itp.dihedrals.iteritems() if v != 2]
-    impr = [k for k,v in itp.dihedrals.iteritems() if v == 2]
-    if isinstance(dihedrals, dict):
-        terms.append(torsion_terms(pdb, mk_polytors, tors))
-    else:
-        terms.append(torsion_terms(pdb, PolyTorsion, tors))
-    terms.append(improper_terms(pdb, PolyImprop, impr))
-
-    # This creates pdb.pair:
-    print itp.moleculetype
-    if LJ:
-        b = itp.moleculetype['nrexcl'] # bonds to exclude
-        terms.append(pair_terms(pdb, LJPair, n=b+2)) # add 2 to get first 'active' atom number
-        terms.append(pair_n_terms(pdb, LJPair, n=b+1, pair_n=itp.pairs.keys()))
-    else: # still need to create pairlist
-	pair_terms(pdb, LJPair, n=itp.moleculetype['nrexcl']+2)
-        pdb.pair |= set( itp.pairs.keys() )
-
-    return FFconcat(terms)
-
 def parse_args(argv):
     parser = argparse.ArgumentParser(description='Match Them Forces')
-    parser.add_argument('itp', metavar='sys.itp', type=str,
-			help='ITP file describing FF terms.')
+    parser.add_argument('termfile', metavar='sys.py', type=str,
+			help='Python file describing FF terms.')
+    parser.add_argument('mol', metavar='sys.mol', type=str,
+			help='MOL/PSF file describing molecule bonding.')
     parser.add_argument('xf', metavar='xf.npy', type=str,
 			help='Coordinate and force data.')
     parser.add_argument('out', metavar='out_dir', type=str,
 			help='Output directory name.')
     parser.add_argument('--param', type=str,
-		        help='Read LJ parameters from prm / top file.')
+                        help='Read LJ parameters from prm / top file.')
     parser.add_argument('--box', metavar=('Lx', 'Ly', 'Lz'),
 			type=float, nargs=3, default=None,
 		        help='Box diagonal lengths.')
@@ -161,16 +113,12 @@ def parse_args(argv):
 def main(args):
     # assumptions:
     param = None
-    dih = None
-    ubs = None
     fudgeQQ = 1.0
     L = None
 
     if args.param != None:
         if args.param[-4:] == ".prm": # charmm format
             param = read_prm(args.param)
-            dih = param.dihedrals
-            ubs = param.angles
         else: # gromacs format
             param = read_top(args.param)
             fudgeQQ = param.defaults['default'][4]
@@ -184,24 +132,28 @@ def main(args):
     out = args.out
 
     # Read input data.
-    itp = read_itp(args.itp)
+    if args.mol[-3:] == "psf":
+        mol = read_psf(args.mol)
+    elif args.mol[-3:] == "itp":
+        mol = mol_of_itp( read_itp(args.mol) )
+    else:
+        mol = read_mol(args.mol)
     xf  = load(args.xf)
 
     # Create topol and FM object.
-    pdb = pdb_of_itp(itp, L)
-    mol = mol_of_itp(itp) # easier access to m, t, and q arrays
-    topol = topol_of_itp(pdb, itp, ubs, dih, args.LJ)
-    pairs = pdb.pair
-    LJ14 = set(itp.pairs.keys())
+    pdb   = pdb_of_mol(mol, L)
+    topol = read_terms(pdb, args.termfile)
+    excl  = set(srt2(i-1,j-1) for (i,j),t  in (Conn(1,2)|Conn(1,3)).run(pdb))
+    one4  = set(srt2(i-1,j-1) for (i,j),t in (Conn(1,4)).run(pdb))
     if args.LJ == False:
+        assert pdb.L == None, "Periodicity not supported when subtracting LJ."
         if param == None:
             raise LookupError, "A parameter file is required for subtracting LJ (using --noLJ)."
-        xf[:,1] -= LJ_frc(pairs, LJ14, xf[:,0], mol.t, param.reps)
+        xf[:,1] -= LJ_frc(excl, one4, xf[:,0], mol.t, param.reps)
 
-    q, mask, MQ = wrassle_es(pairs, LJ14, mol.q, mol.t, fudgeQQ)
+    q, mask, MQ = wrassle_es(excl, one4, mol.q, mol.t, fudgeQQ)
 
     forces = frc_match(topol, pdb, 1.0, 1.0, do_nonlin=args.chg)
-    assert sum([i==j for i,j in pairs]) == 0
     # assumes kcal/mol energy units and e_0 chg. units
     forces.add_nonlin("es", q, ES_seed, ES_frc, dES_frc, (mask, MQ, L))
     show_index(forces.topol)

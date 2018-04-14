@@ -1,7 +1,7 @@
 digraph ChemParam {
   "gen_confs"     [label="gen_confs(mmff94)" rank=0];
   "gen_frc"       [label="gen_frc(theory,basis)" rank=1];
-  "list_terms"    [label="list_terms(14?,UB?)" rank=1];
+  "list_terms"    [label="list_terms" rank=1];
   "match"         [label="match(LJ?,nphi?)" rank=2];
   "gen_confs" -> "gen_frc" [label="x"];
   "gen_frc" -> "match"     [label="xf"]; // xf ~ Ang, kcal/mol/Ang
