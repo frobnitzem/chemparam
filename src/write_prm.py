@@ -81,20 +81,22 @@ def prm_of_param(path):
 	    dihedrals[id] = charmm_tor(c)
 	elif tp == "ljpair":
 	    # Handles 2 cases:
-	      # pair_terms name = "%d+%s-%s"
-	      # pair_n_terms name = "1,%d-%s-%s"
+	      # pair_terms name = "%d+_%s_%s"
+	      # pair_n_terms name = "1,%d_%s_%s"
 	    id, c = get_term(name)
 	    c6, c12 = c[1:]
 	    eps, R0 = 0.25*c6*c6/c12, (-2*c12/c6)**(1/6.0)
-	    if "+" in id[0]: # fix "4+type_type" notation
-		num = id[0].split('+')
-		id = (num[1],) + id[1:]
+            if eps < 1e-9:
+                eps = 0.0
+                R0 = 3.0
+	    if "+" in id[0]: # "4+_type_type" notation
+                id = id[1:]
                 if nonbonded.has_key(id):
                     nonbonded[id][0:2] = [eps, R0]
                 else:
                     nonbonded[id] = [eps, R0]
 	    else:
-		if id[0][0:3] != "1,4":
+		if id[0] != "1,4":
 		    raise ValueError, "Special LJ pairs not 1,4?"
 		id = id[1:]
 		if nonbonded.has_key(id):

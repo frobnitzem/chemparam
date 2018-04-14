@@ -81,18 +81,19 @@ def top_of_param(path):
             id = map(tname, line[1].split("_")[1:])
 	    dihedrals[tuple(id) + (2,)] = (0.0, float(line[2])*en)
 	elif tp == "ljpair":
-	    # pair_terms name = "4+%s-%s"
+	    # Handles 2 cases:
+	      # pair_terms name = "%d+_%s_%s"
+	      # pair_n_terms name = "1,%d_%s_%s"
 	    id, c = get_term(name)
 	    c6, c12 = c[1:]
 	    eps, R0 = 0.25*c6*c6/c12, (-2*c12/c6)**(1/6.0)
-	    if "4+" not in id[0]:
-                raise ValueError, "Invalid LJ format."
-            num = id[0].split('+')
-            id = (tname(num[1]),) + id[1:]
             if eps < 1e-9:
                 eps = 0.0
                 R0 = 3.0
-            nonbonded[id] = (R0*dist, eps*en)
+	    if "+" in id[0]:
+                nonbonded[id[1:]] = (R0*dist, eps*en)
+            else:
+                pair14[id[1:]] = (R0*dist, eps*en)
 
     for n in sorted(set(mol.t)):
         a = mol.t.index(n)
