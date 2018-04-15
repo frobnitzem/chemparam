@@ -143,7 +143,7 @@ def main(args):
     # Create topol and FM object.
     pdb   = pdb_of_mol(mol, L)
     topol = read_terms(pdb, args.termfile)
-    excl  = set(srt2(i-1,j-1) for (i,j),t  in (Conn(1,2)|Conn(1,3)).run(pdb))
+    excl  = set(srt2(i-1,j-1) for (i,j),t in (Conn(1,2)|Conn(1,3)).run(pdb))
     one4  = set(srt2(i-1,j-1) for (i,j),t in (Conn(1,4)).run(pdb))
     if args.LJ == False:
         assert pdb.L == None, "Periodicity not supported when subtracting LJ."
@@ -160,7 +160,7 @@ def main(args):
 
     # Do work.
     forces.append(xf[:,0], xf[:,1])
-    forces.dimensionality(1e-7) # double-checks well-formedness
+    #forces.dimensionality(1e-7) # double-checks well-formedness
     forces.maximize()
     forces.write_out(out)
 

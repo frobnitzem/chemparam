@@ -11,6 +11,7 @@ def mk():
     param = read_prm("../data/cgenff.36.prm")
     dihedrals = param.dihedrals
     ubs = param.angles
+    nbs = param.nonbonded
 
     # This code constrains dihedrals based on the 'dihedrals'
     # dict. from a prm file.
@@ -28,9 +29,16 @@ def mk():
             return True
         return len(ubs[t]) == 4 # check presence in ubs
 
-    return ConstrainTors, has_ub
+    def special14(ti,tj):
+        if nbs.has_key(ti) and len(nbs[ti]) == 4:
+            return True
+        if nbs.has_key(tj) and len(nbs[tj]) == 4:
+            return True
+        return False
 
-ConstrainTors, has_ub = mk()
+    return ConstrainTors, has_ub, special14
+
+ConstrainTors, has_ub, special14 = mk()
 
 terms = [
     Term("pbond",         PolyBond,      Conn(1,2)),
@@ -39,7 +47,10 @@ terms = [
     Term("ptor",          ConstrainTors, Conn(1,2,3,4)),
     Term("pimproper",     PolyImprop,    OOP()),
     # Note: LJPair (as called here) currently uses an LJ-cutoff of 11 Ang.
-    Term("ljpair_1,4",    LJPair,        Conn(1,4)),
-    PairTerm("ljpair_5+", LJPair, Conn(1,2) | Conn(1,3) | Conn(1,4))
+    #PairTerm("ljpair_4+", LJPair, Conn(1,2) | Conn(1,3))
+    #Term("ljpair_1,4",    LJPair,        Conn(1,4)),
+    #PairTerm("ljpair_5+", LJPair, Conn(1,2) | Conn(1,3) | Conn(1,4))
+    Term("ljpair_1,4",     LJPair, Conn(1,4) & TFn(special14)),
+    PairTerm("ljpair_4,5+",LJPair, Conn(1,2) | Conn(1,3) \
+                                   | (Conn(1,4) & TFn(special14)) )
 ]
-

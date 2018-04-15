@@ -53,13 +53,14 @@ END
     # Returns rmin, eps for a given type-pair.
     def reps(self, t1, t2, onefour):
         coef = self.nonbonded
+        ea, ra = coef[t1][:2]
+        eb, rb = coef[t2][:2]
         if onefour:
-            eps = (coef[t1][2]*coef[t2][2])**(0.5)
-            rmin = coef[t1][3] + coef[t2][3]
-        else:
-            eps = (coef[t1][0]*coef[t2][0])**(0.5)
-            rmin = coef[t1][1] + coef[t2][1]
-        return rmin, eps
+            if len(coef[t1]) >= 4:
+                ea, ra = coef[t1][2:]
+            if len(coef[t2]) >= 4:
+                eb, rb = coef[t2][2:]
+        return ra + rb, (ea*eb)**0.5
 
 def write_atom(k,v): # (n, mass)
     return "MASS %5d %-6s %9.5f"%(v[0], k, v[1])
@@ -150,8 +151,7 @@ def read_nonbonded(words):
 	    p[line[0]] = (-float(line[2]), float(line[3]),
 			  -float(line[5]), float(line[6]))
 	else:
-	    p[line[0]] = (-float(line[2]), float(line[3]),
-			  -float(line[2]), float(line[3]))
+	    p[line[0]] = (-float(line[2]), float(line[3]))
     return p
 
 # String -> IO(PRM)
