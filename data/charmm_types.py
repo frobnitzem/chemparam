@@ -12,6 +12,7 @@ def mk():
     dihedrals = param.dihedrals
     ubs = param.angles
     nbs = param.nonbonded
+    oop = param.impropers
 
     # This code constrains dihedrals based on the 'dihedrals'
     # dict. from a prm file.
@@ -36,16 +37,19 @@ def mk():
             return True
         return False
 
-    return ConstrainTors, has_ub, special14
+    def has_oop(ti,tj,tk,tl):
+        return oop.has_key((ti,tj,tk,tl))
 
-ConstrainTors, has_ub, special14 = mk()
+    return ConstrainTors, has_ub, special14, has_oop
+
+ConstrainTors, has_ub, special14, has_oop = mk()
 
 terms = [
     Term("pbond",         PolyBond,      Conn(1,2)),
     Term("pangle",        PolyAngle,     Conn(1,2,3)),
     Term("pub",           PolyUB,        Conn(1,2,3) & TFn(has_ub)),
     Term("ptor",          ConstrainTors, Conn(1,2,3,4)),
-    Term("pimproper",     PolyImprop,    OOP()),
+    Term("pimprop",       PolyImprop,    OOP() & TFn(has_oop)),
     # Note: LJPair (as called here) currently uses an LJ-cutoff of 11 Ang.
     #PairTerm("ljpair_4+", LJPair, Conn(1,2) | Conn(1,3))
     #Term("ljpair_1,4",    LJPair,        Conn(1,4)),

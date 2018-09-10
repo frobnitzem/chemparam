@@ -163,6 +163,8 @@ def main(args):
     #forces.dimensionality(1e-7) # double-checks well-formedness
     forces.maximize()
     forces.write_out(out)
+    #forces.sample(1000)
+    #forces.write_out("mc")
 
     q = dot(MQ, forces.nonlin["es"][0])
     # Provide a minimal file from which a full gmx parameter set can
