@@ -11,6 +11,8 @@ def mk():
     param = read_prm("../data/cgenff.36.prm")
     dihedrals = param.dihedrals
     ubs = param.angles
+    nbs = param.nonbonded
+    oop = param.impropers
 
     # This code constrains dihedrals based on the 'dihedrals'
     # dict. from a prm file.
@@ -28,15 +30,25 @@ def mk():
             return True
         return len(ubs[t]) == 4 # check presence in ubs
 
-    return ConstrainTors, has_ub
+    def special14(ti,tj):
+        if nbs.has_key(ti) and len(nbs[ti]) == 4:
+            return True
+        if nbs.has_key(tj) and len(nbs[tj]) == 4:
+            return True
+        return False
 
-ConstrainTors, has_ub = mk()
+    def has_oop(ti,tj,tk,tl):
+        return oop.has_key((ti,tj,tk,tl))
+
+    return ConstrainTors, has_ub, special14, has_oop
+
+ConstrainTors, has_ub, special14, has_oop = mk()
 
 terms = [
     Term("pbond",         PolyBond,      Conn(1,2)),
     Term("pangle",        PolyAngle,     Conn(1,2,3)),
     Term("pub",           PolyUB,        Conn(1,2,3) & TFn(has_ub)),
     Term("ptor",          ConstrainTors, Conn(1,2,3,4)),
-    Term("pimproper",     PolyImprop,    OOP())
+    Term("pimprop",       PolyImprop,    OOP() & TFn(has_oop)),
 ]
 
