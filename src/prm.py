@@ -17,13 +17,14 @@ __all__ = ["read_prm"]
 class PRM:
     def __init__(self, atoms={}, bonds={},
                        angles={}, dihedrals={},
-                       impropers={}, nonbonded={}):
+                       impropers={}, nonbonded={}, nbfix={}):
         self.atoms = atoms
         self.bonds = bonds
         self.angles = angles
         self.dihedrals = dihedrals
         self.impropers = impropers
         self.nonbonded = nonbonded
+        self.nbfix = nbfix
 
     def write(self, name):
 	f = open(name, 'w')
@@ -53,6 +54,12 @@ END
     # Returns rmin, eps for a given type-pair.
     def reps(self, t1, t2, onefour):
         coef = self.nonbonded
+        pcoef = self.nbfix
+        if pcoef.has_key((t1, t2)):
+            return pcoef[(t1, t2)]
+        elif pcoef.has_key((t2, t1)):
+            return pcoef[(t2, t1)]
+
         ea, ra = coef[t1][:2]
         eb, rb = coef[t2][:2]
         if onefour:
@@ -140,6 +147,17 @@ def read_impropers(words):
         p[tuple(line[:4])] = float(line[4])
     return p
 
+
+# example:
+# ODW     CD2O3A -0.11528  3.48690 ! MAS, PEML
+def read_nbfix(words):
+    p = {}
+    for line in words:
+        if len(line) < 4:
+            continue
+        p[(line[0], line[1])] = -float(line[2]), float(line[3])
+    return p
+
 # TODO: do something useful with first 2 lines of nonbonded sec.
 def read_nonbonded(words):
     # skip first 2 lines
@@ -160,7 +178,8 @@ def read_prm(name):
     parse = { 'dihedrals': read_dihedrals,
               'impropers': read_impropers,
               'nonbonded': read_nonbonded,
-              'angles':    read_angles,
+              'nbfix'    : read_nbfix,
+              'angles'   : read_angles,
             }
     # parse output
     out = {}
@@ -184,7 +203,7 @@ def read_prm(name):
                 if parse.has_key(tok[0].lower()): # begin new parse
                     sec = tok[0].lower()
                 continue
-            if tok[0] == "NONBONDED": # Special case, keep first line
+            if tok[0] in ["NONBONDED", "THOLE"]: # Special case, keep first line
                 sec, words = process(out, sec, words)
                 if parse.has_key(tok[0].lower()): # begin new parse
                     sec = tok[0].lower()

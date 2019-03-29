@@ -174,6 +174,7 @@ def read_top(name):
                 continue
             if tok[0] == '[': # new section
                 sname = tok[1].lower()
+                print sname
                 sec, p = parser(sname)
                 continue
             if sec != None: # parse current line
